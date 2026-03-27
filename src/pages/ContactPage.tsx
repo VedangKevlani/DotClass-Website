@@ -252,6 +252,13 @@ export default function ContactPage() {
       const result = await response.json();
       console.log("Server response:", result);
 
+      if (!response.ok) {
+        // Surface the real error from the server
+        const msg = result.details || result.error || "Unknown server error";
+        alert(`❌ Failed to send: ${msg}`);
+        return;
+      }
+
       if (result.whatsapp) {
         window.open(result.whatsapp, "_blank");
       }
@@ -260,7 +267,7 @@ export default function ContactPage() {
       setSubmitted(true);
     } catch (error) {
       console.error("Submit error:", error);
-      alert("Submission failed. Please try again.");
+      alert("Submission failed. Please check your connection and try again.");
     }
   };
 

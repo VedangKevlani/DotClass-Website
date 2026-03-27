@@ -276,22 +276,24 @@ app.post("/api/contact/send", async (req, res) => {
       
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
         console.error("❌ Critical: EMAIL_USER or EMAIL_PASSWORD not set in environment!");
+        return res.status(500).json({ error: "Email configuration missing on server." });
       }
 
-      // We handle the email sending ASYNCHRONOUSLY so the user doesn't wait
-      // for the SMTP connection to time out or finish.
-      (async () => {
-        try {
-          console.log("📧 Background: Attempting to send emails...");
-          await sendTeamNotificationEmail(name, contact, reason, message, method);
-          console.log("✅ Background: Team notification sent");
+      try {
+        console.log("📧 Attempting to send team notification...");
+        await sendTeamNotificationEmail(name, contact, reason, message, method);
+        console.log("✅ Team notification sent");
 
-          await sendConfirmationEmail(name, contact, reason, method);
-          console.log("✅ Background: Sender confirmation sent");
-        } catch (mailError) {
-          console.error("❌ Background Mailer Error:", mailError);
-        }
-      })();
+        console.log("📧 Attempting to send confirmation to sender...");
+        await sendConfirmationEmail(name, contact, reason, method);
+        console.log("✅ Sender confirmation sent");
+      } catch (mailError) {
+        console.error("❌ Mailer Error:", mailError);
+        return res.status(500).json({ 
+          error: "Failed to send email.", 
+          details: mailError.message 
+        });
+      }
     }
 
     if (method === "sms") {
