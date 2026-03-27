@@ -6,7 +6,28 @@ const axios = require("axios");
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = [
+  "https://dotclass.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman) or whitelisted origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: Origin ${origin} not allowed`));
+    }
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+}));
+
+// Handle preflight for all routes
+app.options("*", cors());
 app.use(express.json());
 
 /* --------------------------------------------------
