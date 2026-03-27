@@ -12,26 +12,23 @@ app.use(express.json());
 /* --------------------------------------------------
    Email Configuration
 -------------------------------------------------- */
-const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  },
-  connectionTimeout: 10000, // 10 seconds
-  greetingTimeout: 10000,   // 10 seconds
-});
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASSWORD
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+  });
+}
 
-// Verify connection configuration
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log("❌ Transporter Verification Error:", error);
-  } else {
-    console.log("✅ Server is ready to take our messages");
-  }
-});
+// Log env var presence at startup (never log the actual values)
+console.log("EMAIL_USER set:", !!process.env.EMAIL_USER);
+console.log("EMAIL_PASSWORD set:", !!process.env.EMAIL_PASSWORD);
 
 /* --------------------------------------------------
    Telegram Alert
@@ -186,6 +183,7 @@ async function sendConfirmationEmail(name, senderEmail, reason, method) {
 </html>
   `;
 
+  const transporter = createTransporter();
   await transporter.sendMail({
     from: `"DotClass Team" <${process.env.EMAIL_USER}>`,
     to: senderEmail,
@@ -242,6 +240,7 @@ async function sendTeamNotificationEmail(name, contact, reason, message, method)
 </html>
   `;
 
+  const transporter = createTransporter();
   await transporter.sendMail({
     from: `"DotClass Leads" <${process.env.EMAIL_USER}>`,
     to: process.env.EMAIL_USER,
@@ -259,7 +258,38 @@ app.get("/", (req, res) => {
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({ 
+    status: "ok", 
+    timestamp: new Date().toISOString(),
+    emailUserSet: !!process.env.EMAIL_USER,
+    emailPasswordSet: !!process.env.EMAIL_PASSWORD,
+  });
+});
+
+/* --------------------------------------------------
+   Debug: Test Email Route
+-------------------------------------------------- */
+app.get("/api/test-email", async (req, res) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    return res.status(500).json({ 
+      error: "Missing env vars", 
+      emailUserSet: !!process.env.EMAIL_USER, 
+      emailPasswordSet: !!process.env.EMAIL_PASSWORD 
+    });
+  }
+  try {
+    const transporter = createTransporter();
+    await transporter.verify();
+    await transporter.sendMail({
+      from: `"DotClass Test" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER,
+      subject: "✅ DotClass Email Test",
+      text: "If you see this, Nodemailer is working correctly!"
+    });
+    res.json({ success: true, message: "Test email sent to " + process.env.EMAIL_USER });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: err.code });
+  }
 });
 
 /* --------------------------------------------------
