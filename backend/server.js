@@ -36,14 +36,15 @@ app.use(express.json());
 function createTransporter() {
   return nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
+    port: 465,
+    secure: true, // SSL — more reliable on cloud platforms than port 587
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
     },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
   });
 }
 
