@@ -241,6 +241,7 @@ export default function ContactPage() {
   const onSubmit = async (data: FormData) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+      console.log("Attempting to submit to:", `${apiUrl}/api/contact/send`);
       const response = await fetch(`${apiUrl}/api/contact/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
