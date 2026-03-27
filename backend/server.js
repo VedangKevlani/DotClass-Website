@@ -19,7 +19,9 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASSWORD
-  }
+  },
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,   // 10 seconds
 });
 
 /* --------------------------------------------------
@@ -261,11 +263,22 @@ app.post("/api/contact/send", async (req, res) => {
     console.log(req.body);
 
     if (method === "email") {
-      // Notify DotClass team with styled email
-      await sendTeamNotificationEmail(name, contact, reason, message, method);
+      console.log("📧 Attempting to send emails...");
+      
+      try {
+        // Notify DotClass team with styled email
+        await sendTeamNotificationEmail(name, contact, reason, message, method);
+        console.log("✅ Team notification sent");
 
-      // Send confirmation to sender
-      await sendConfirmationEmail(name, contact, reason, method);
+        // Send confirmation to sender
+        await sendConfirmationEmail(name, contact, reason, method);
+        console.log("✅ Sender confirmation sent");
+      } catch (mailError) {
+        console.error("❌ Mailer Error:", mailError);
+        // We still want to return success to the user if the record was "received", 
+        // but maybe we should let them know there was a notification delay.
+        // For now, let's just log it.
+      }
     }
 
     if (method === "sms") {
