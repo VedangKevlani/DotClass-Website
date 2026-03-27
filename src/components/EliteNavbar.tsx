@@ -80,7 +80,6 @@ export default function EliteNavbar() {
             transition={{ duration: 0.5 }}
             className="w-11 h-11 rounded-xl flex items-center justify-center text-[#47BA74] font-bold"
           >
-            <img src="jamaica.png" alt="Jamaica Flag" className="h-10" />
           </motion.div>
 
           <span className="font-semibold tracking-tight text-lg">
