@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 const axios = require("axios");
 
 const app = express();
@@ -31,26 +31,15 @@ app.options(/.*/, cors());
 app.use(express.json());
 
 /* --------------------------------------------------
-   Email Configuration
+   Resend Client (HTTP-based — works on all cloud platforms)
 -------------------------------------------------- */
-function createTransporter() {
-  return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true, // SSL — more reliable on cloud platforms than port 587
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
-  });
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
 }
 
 // Log env var presence at startup (never log the actual values)
-console.log("EMAIL_USER set:", !!process.env.EMAIL_USER);
-console.log("EMAIL_PASSWORD set:", !!process.env.EMAIL_PASSWORD);
+console.log("RESEND_API_KEY set:", !!process.env.RESEND_API_KEY);
+console.log("NOTIFY_EMAIL set:", !!process.env.NOTIFY_EMAIL);
 
 /* --------------------------------------------------
    Telegram Alert
@@ -205,9 +194,9 @@ async function sendConfirmationEmail(name, senderEmail, reason, method) {
 </html>
   `;
 
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: `"DotClass Team" <${process.env.EMAIL_USER}>`,
+  const resend = getResend();
+  await resend.emails.send({
+    from: "DotClass Team <onboarding@resend.dev>",
     to: senderEmail,
     subject: `✅ Got it, ${name}! Your DotClass inquiry is in safe hands`,
     html,
@@ -262,10 +251,10 @@ async function sendTeamNotificationEmail(name, contact, reason, message, method)
 </html>
   `;
 
-  const transporter = createTransporter();
-  await transporter.sendMail({
-    from: `"DotClass Leads" <${process.env.EMAIL_USER}>`,
-    to: process.env.EMAIL_USER,
+  const resend = getResend();
+  await resend.emails.send({
+    from: "DotClass Leads <onboarding@resend.dev>",
+    to: process.env.NOTIFY_EMAIL,
     subject: `🔥 New Inquiry: ${name} — ${reason || "Lead"}`,
     html,
     text: `New Inquiry from ${name}\nContact: ${contact}\nReason: ${reason}\nMessage: ${message}`
@@ -283,8 +272,8 @@ app.get("/api/health", (req, res) => {
   res.json({ 
     status: "ok", 
     timestamp: new Date().toISOString(),
-    emailUserSet: !!process.env.EMAIL_USER,
-    emailPasswordSet: !!process.env.EMAIL_PASSWORD,
+    resendKeySet: !!process.env.RESEND_API_KEY,
+    notifyEmailSet: !!process.env.NOTIFY_EMAIL,
   });
 });
 
@@ -292,25 +281,24 @@ app.get("/api/health", (req, res) => {
    Debug: Test Email Route
 -------------------------------------------------- */
 app.get("/api/test-email", async (req, res) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+  if (!process.env.RESEND_API_KEY || !process.env.NOTIFY_EMAIL) {
     return res.status(500).json({ 
       error: "Missing env vars", 
-      emailUserSet: !!process.env.EMAIL_USER, 
-      emailPasswordSet: !!process.env.EMAIL_PASSWORD 
+      resendKeySet: !!process.env.RESEND_API_KEY, 
+      notifyEmailSet: !!process.env.NOTIFY_EMAIL 
     });
   }
   try {
-    const transporter = createTransporter();
-    await transporter.verify();
-    await transporter.sendMail({
-      from: `"DotClass Test" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER,
+    const resend = getResend();
+    await resend.emails.send({
+      from: "DotClass Test <onboarding@resend.dev>",
+      to: process.env.NOTIFY_EMAIL,
       subject: "✅ DotClass Email Test",
-      text: "If you see this, Nodemailer is working correctly!"
+      text: "If you see this, Resend is working correctly!"
     });
-    res.json({ success: true, message: "Test email sent to " + process.env.EMAIL_USER });
+    res.json({ success: true, message: "Test email sent to " + process.env.NOTIFY_EMAIL });
   } catch (err) {
-    res.status(500).json({ error: err.message, code: err.code });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -326,8 +314,8 @@ app.post("/api/contact/send", async (req, res) => {
     if (method === "email") {
       console.log("📧 Email method selected. Checking environment variables...");
       
-      if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-        console.error("❌ Critical: EMAIL_USER or EMAIL_PASSWORD not set in environment!");
+      if (!process.env.RESEND_API_KEY || !process.env.NOTIFY_EMAIL) {
+        console.error("❌ Critical: RESEND_API_KEY or NOTIFY_EMAIL not set in environment!");
         return res.status(500).json({ error: "Email configuration missing on server." });
       }
 
